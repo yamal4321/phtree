@@ -217,9 +217,10 @@ struct PHTree {
   };
 
   struct Iter2D {
-    bstr l, r, lm, rm; Iter1D it; bool sp, us; phtree &tree;
+    bstr l, r, lm, rm; Iter1D it; bool sp; phtree &tree;
+    static constexpr bool us = D<8? 0: 1;
 
-    Iter2D(Iter1D _it, phtree &_tree, bool save_path=true, bool use_skip=true): it{_it}, tree(_tree), sp(save_path), us(use_skip) { reset(); }
+    Iter2D(Iter1D _it, phtree &_tree, bool save_path=true): it{_it}, tree(_tree), sp(save_path) { reset(); }
 
     bstr operator*() { return it.path; }
     bool operator++(int) { return next(); }
