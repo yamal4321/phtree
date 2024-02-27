@@ -6,7 +6,6 @@ Widget::Widget(QWidget *parent)
     : QWidget(parent), t(this)
 {
   auto seed=time(0);
-  seed=1708983260;
   std::cout << "seed: " << seed << std::endl << std::flush;
   srand(seed);
   gen(2000);

@@ -149,25 +149,49 @@ struct PHTree {
     bool operator()() { return true; }
     void reset() { pz=0; id[0]=0; if(n[0].null()) pz=-u64(1); }
     void begin() { reset(); if(!end()) down(*this); }
-    template <typename Fn> bool next(Fn &filter) { if(up(filter)) down(filter); return !end(); }
+    template <typename Filter> bool next(Filter &f) { if(up(f)) down(f); return !end(); }
+    template <typename Filter> bool next_skip(Filter &f) { if(up_skip(f)) down_skip(f); return !end(); }
     bool end() { return pz==-u64(1); }
 
-    template <typename Fn>
-    bool down(Fn &filter) {
+    template <typename Filter>
+    bool down(Filter &f) {
       while(pz!=H) {
-        if(n[pz].t==LHC) { id[pz]=0; while(!filter()) { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) return next(filter); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz][id[pz]]; pz++;
-        } else if(n[pz].t==AHC) { id[pz]=0; while(n[pz].p()[id[pz]] == 0 || !filter()) { id[pz]=id[pz]+1 & DM; if(id[pz]==0) return next(filter); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=id[pz]; pz++;
-        } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz; if(!filter()) return next(filter); n[pz+l-1]=n[pz]; if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz+l-1]=l; if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; pz+=l; }
+        if(n[pz].t==LHC) { id[pz]=0; while(!f()) { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) return next(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz][id[pz]]; pz++;
+        } else if(n[pz].t==AHC) { id[pz]=0; while(n[pz].p()[id[pz]] == 0 || !f()) { id[pz]=id[pz]+1 & DM; if(id[pz]==0) return next(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=id[pz]; pz++;
+        } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz; if(!f()) return next(f); n[pz+l-1]=n[pz]; if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz+l-1]=l; if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; pz+=l; }
       }
       return true;
     }
 
-    template <typename Fn>
-    bool up(Fn &filter) {
+    template <typename Filter>
+    bool up(Filter &f) {
       auto to_par=[this]() { pz-=(n[pz].t<INF? 1: id[pz]); };
       for(pz=pz-1; pz!=-u64(1); ) {
-        if(n[pz].t==LHC) { do { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) break; } while(!filter()); if(id[pz]==n[pz].sz()) to_par(); else break;
-        } else if(n[pz].t==AHC) { do { id[pz]=id[pz]+1 & DM; if(id[pz]==0) break; } while(n[pz].p()[id[pz]]==0 || !filter()); if(id[pz]==0) to_par(); else break;
+        if(n[pz].t==LHC) { do { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) break; } while(!f()); if(id[pz]==n[pz].sz()) to_par(); else break;
+        } else if(n[pz].t==AHC) { do { id[pz]=id[pz]+1 & DM; if(id[pz]==0) break; } while(n[pz].p()[id[pz]]==0 || !f()); if(id[pz]==0) to_par(); else break;
+        } else { to_par(); }
+      }
+      if(pz==-u64(1)) return false; else { if(pz!=H-1) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz].t==AHC? id[pz]: n[pz][id[pz]]; pz++; return true; } 
+    }
+
+    u64 skip(u64 c, u64 l, u64 r) { return ((c | ~r) + 1) & r | l; }
+
+    template <typename Filter>
+    bool down_skip(Filter &f) {
+      while(pz!=H) {
+        if(n[pz].t==LHC) { id[pz]=0; while(!f()) { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) return next_skip(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz][id[pz]]; pz++;
+        } else if(n[pz].t==AHC) { u64 l=f.lm[pz]&f.l[pz], r=f.rm[pz]|f.r[pz], p0=skip(DM, l, r); id[pz]=p0; while(n[pz].p()[id[pz]] == 0 || !f()) { id[pz]=skip(id[pz], l, r); if(id[pz]==p0) return next_skip(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=id[pz]; pz++;
+        } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz; if(!f()) return next_skip(f); n[pz+l-1]=n[pz]; if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz+l-1]=l; if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; pz+=l; }
+      }
+      return true;
+    }
+
+    template <typename Filter>
+    bool up_skip(Filter &f) {
+      auto to_par=[this]() { pz-=(n[pz].t<INF? 1: id[pz]); };
+      for(pz=pz-1; pz!=-u64(1); ) {
+        if(n[pz].t==LHC) { do { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) break; } while(!f()); if(id[pz]==n[pz].sz()) to_par(); else break;
+        } else if(n[pz].t==AHC) { u64 l=f.lm[pz]&f.l[pz], r=f.rm[pz]|f.r[pz], p0=skip(DM, l, r); do { id[pz]=skip(id[pz], l, r); if(id[pz]==p0) break; } while(n[pz].p()[id[pz]]==0 || !f()); if(id[pz]==p0) to_par(); else break;
         } else { to_par(); }
       }
       if(pz==-u64(1)) return false; else { if(pz!=H-1) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz].t==AHC? id[pz]: n[pz][id[pz]]; pz++; return true; } 
@@ -193,9 +217,9 @@ struct PHTree {
   };
 
   struct Iter2D {
-    bstr l, r, lm, rm; Iter1D it; bool sp; phtree &tree;
+    bstr l, r, lm, rm; Iter1D it; bool sp, us; phtree &tree;
 
-    Iter2D(Iter1D _it, phtree &_tree, bool save_path=true): it{_it}, tree(_tree), sp(save_path) { reset(); }
+    Iter2D(Iter1D _it, phtree &_tree, bool save_path=true, bool use_skip=true): it{_it}, tree(_tree), sp(save_path), us(use_skip) { reset(); }
 
     bstr operator*() { return it.path; }
     bool operator++(int) { return next(); }
@@ -223,8 +247,8 @@ struct PHTree {
       } else { u64 ll=lm[pz], rr=rm[pz]; u64 l=n[pz].t==INF? n[pz].sz(): H-pz; return down(n[pz].id()-pz/C, pz, pz+l-1); }
     }
     void reset() { lm[0]=~0ull; rm[0]=0; it.reset(); }
-    void begin() { reset(); if(it.end() || !it.down(*this)) it.pz=-u64(1); }
-    bool next() { if(it.up(*this)) return it.down(*this); return !end(); }
+    void begin() { reset(); if(it.end() || !(us? it.down_skip(*this): it.down(*this))) it.pz=-u64(1); }
+    bool next() { if(us? it.up_skip(*this): it.up(*this)) return us? it.down_skip(*this): it.down(*this); return !end(); }
     bool end() { return it.pz==-u64(1); }
 
     void set_intersect(const bstr &r) { point d=tree.decode(r), lb, rb; for(u64 i=0; i!=D/2; i++) for(u64 j=0, s=tree.sign_preprocessor? 1ull<<H-1: 0; j!=POINT_K; j++) { lb[i][j]=0ull;    lb[i+D/2][j]=d[i][j];  rb[i][j]=d[i+D/2][j];   rb[i+D/2][j]=~0ull ^ s;   } set_rect(tree.encode(lb), tree.encode(rb)); }
