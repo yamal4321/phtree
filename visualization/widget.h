@@ -11,8 +11,8 @@
 #include <QTimer>
 
 using u64=std::uint64_t;
-using ph = PHTree<2, 32>;
-using ph2 = PHTree<4, 32>;
+using ph = PHTree<2, 64>;
+using ph2 = PHTree<4, 64>;
 using bstr = ph::bstr;
 
 struct particle {

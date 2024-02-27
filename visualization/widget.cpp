@@ -45,13 +45,13 @@ void Widget::gen_rects(int cnt)
 void Widget::paintEvent(QPaintEvent *e) {
     QPainter p(this);
 
-    ph tr;
+    ph tr(1);
     for(auto pt: points) {
       ph::point pt2; pt2[0][0]=pt.pz.x(); pt2[1][0]=pt.pz.y();
       tr.insert(tr.encode(pt2));
     }
 
-    ph2 tr2; 
+    ph2 tr2(1);
     for(auto rect: rects) {
       auto low = rect.topLeft(), top = rect.bottomRight();
       ph2::point rect2; rect2[0][0] = low.x(); rect2[1][0] = low.y(); rect2[2][0] = top.x(); rect2[3][0] = top.y();

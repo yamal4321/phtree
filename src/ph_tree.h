@@ -227,8 +227,8 @@ struct PHTree {
     bool next() { if(it.up(*this)) return it.down(*this); return !end(); }
     bool end() { return it.pz==-u64(1); }
 
-    void set_intersect(const bstr &r) { point d=tree.decode(r), lb, rb; for(u64 i=0; i!=D/2; i++) for(u64 j=0; j!=POINT_K; j++) { lb[i][j]=0ull;    lb[i+D/2][j]=d[i][j];  rb[i][j]=d[i+D/2][j];  rb[i+D/2][j]=~0ull;       } set_rect(tree.encode(lb), tree.encode(rb)); }
-    void set_include(const bstr &r)   { point d=tree.decode(r), lb, rb; for(u64 i=0; i!=D/2; i++) for(u64 j=0; j!=POINT_K; j++) { lb[i][j]=d[i][j]; lb[i+D/2][j]=0ull;     rb[i][j]=~0ull;        rb[i+D/2][j]=d[i+D/2][j]; } set_rect(tree.encode(lb), tree.encode(rb)); }
+    void set_intersect(const bstr &r) { point d=tree.decode(r), lb, rb; for(u64 i=0; i!=D/2; i++) for(u64 j=0, s=tree.sign_preprocessor? 1ull<<H-1: 0; j!=POINT_K; j++) { lb[i][j]=0ull;    lb[i+D/2][j]=d[i][j];  rb[i][j]=d[i+D/2][j];   rb[i+D/2][j]=~0ull ^ s;   } set_rect(tree.encode(lb), tree.encode(rb)); }
+    void set_include(const bstr &r)   { point d=tree.decode(r), lb, rb; for(u64 i=0; i!=D/2; i++) for(u64 j=0, s=tree.sign_preprocessor? 1ull<<H-1: 0; j!=POINT_K; j++) { lb[i][j]=d[i][j]; lb[i+D/2][j]=0ull;     rb[i][j]=~0ull ^ s;     rb[i+D/2][j]=d[i+D/2][j]; } set_rect(tree.encode(lb), tree.encode(rb)); }
     void set_rect(const bstr &_l, const bstr &_r) { l=_l; r=_r; }
   };
 
