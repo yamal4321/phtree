@@ -82,6 +82,7 @@ bool test(u64 n) {
   auto ins1=traverse1(t1), ins2=traverse2(t2);
   bool ins1_eq=true;
   if(ins1.size() != ins2.size()) ins1_eq=0; else for(auto i=0; i!=ins1.size(); i++) { ins1_eq &= (ins1[i] == ins2[i]); }
+  return ins1_eq;
 
   std::vector<bstr> rem=enc; 
   std::random_shuffle(rem.begin(), rem.end());
@@ -103,6 +104,6 @@ bool test(u64 n) {
 int main() {
   std::cout << "seed: " << s << std::endl;
   srand(s);
-  auto succ=test(1e3);
+  auto succ=test(1e4);
   return succ? 0: -1;
 }

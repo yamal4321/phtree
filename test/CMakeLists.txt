@@ -1,11 +1,16 @@
 cmake_minimum_required(VERSION 3.0)
 
-set (FLAG "-O3")
+set (FLAG "-g")
 
 set (Ds 1 2 4 8)
 set (Hs 1 2 4 8 16 32 64 128)
 
 set (TESTS "test_bitstring" "test_encode" "test_node" "test_mask" "test_tree" "test_query" "test_knn")
+
+set (Ds 8)
+set (Hs 1 2 4 8 16 32 64 128)
+
+set (TESTS "test_tree")
 
 foreach(T ${TESTS})
   foreach(D ${Ds})
