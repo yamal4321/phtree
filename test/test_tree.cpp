@@ -7,8 +7,10 @@
 #include <bitset>
 #include <vector>
 #include <functional>
+#include <map>
 
 using u64=std::uint64_t;
+using uptr=uintptr_t;
 using namespace libmorton;
 
 constexpr u64 D=${D};
@@ -63,6 +65,8 @@ bool test(u64 n) {
   using bstr=ph2::bstr;
   using pt=Point<D, H>;
 
+  auto hash=[&](pt p) { u64 val=0; for(auto i=0; i!=D; i++) for(auto j=0; j!=POINT_K; j++) val+=p[i][j]; return (void*)uptr(val); };
+
   static_assert(sizeof(decltype(rand())) >= 4);
   std::vector<pt> gen;
   for(auto i=0; i!=n; i++) {
@@ -72,17 +76,18 @@ bool test(u64 n) {
 
   auto traverse1 = [&](ph1 &p) { return p.traverse(); };
   auto traverse2 = [&](ph2 &p) { std::vector<bstr> ret; for(auto it=p.begin(); !it.end(); it++) ret.push_back(*it); return ret; };
+  auto ptrs = [&](ph2 &p) { std::vector<void*> ret; for(auto it=p.begin(); !it.end(); it++) ret.push_back(it.ptr()); return ret; };
+  auto check_ptrs = [&](ph2 &p) { auto pts=traverse2(p); auto ps=ptrs(p); bool eq=1; for(auto i=0; i!=pts.size(); i++) { auto h1=ps[i], h2=hash(p.decode(pts[i])); eq &= h1==h2; } return eq; };
 
   ph1 t1;
   ph2 t2;
 
   std::vector<bstr> enc; for(auto pt: gen) enc.push_back(t2.encode(pt));
 
-  for(auto p: enc) { t1.insert(p); t2.insert(p); }
+  for(auto p: enc) { t1.insert(p); t2.insert(p, hash(t2.decode(p))); }
   auto ins1=traverse1(t1), ins2=traverse2(t2);
   bool ins1_eq=true;
   if(ins1.size() != ins2.size()) ins1_eq=0; else for(auto i=0; i!=ins1.size(); i++) { ins1_eq &= (ins1[i] == ins2[i]); }
-  return ins1_eq;
 
   std::vector<bstr> rem=enc; 
   std::random_shuffle(rem.begin(), rem.end());
@@ -93,12 +98,13 @@ bool test(u64 n) {
   if(rem1.size() != rem2.size()) rem_eq=0; else for(auto i=0; i!=rem1.size(); i++)  rem_eq &= (rem1[i] == rem2[i]);
 
   std::vector<bstr> ins(enc.begin()+enc.size()/2, enc.end());
-  for(auto p: ins) { t1.insert(p); t2.insert(p); }
+  for(auto p: ins) { t1.insert(p); t2.insert(p, hash(t2.decode(p))); }
   auto ins3=traverse1(t1), ins4=traverse2(t2);
   bool ins2_eq=true;
   if(ins3.size() != ins4.size()) ins2_eq=0; else for(auto i=0; i!=ins3.size(); i++)  ins2_eq &= (ins3[i] == ins4[i]);
 
-  return ins1_eq & rem_eq & ins2_eq;
+  bool ptrs_eq=check_ptrs(t2);
+  return ins1_eq & rem_eq & ins2_eq & ptrs_eq;
 }
 
 int main() {

@@ -10,6 +10,7 @@ constexpr u64 H=${H};
 using bstr=Bitstring<D, H>;
 using tree=PHTree<D, H>;
 using point=PHTree<D, H>::point;
+u64 POINT_K=PHTree<D, H>::POINT_K;
 
 u64 s=time(0);
 
@@ -21,12 +22,17 @@ bool test_rectQuery(int n, int k) {
   std::vector<bstr> gen;
   for(auto i=0; i!=n; i++) gen.push_back(generate());
 
-  for(auto v: gen) t.insert(v);
+  auto hash=[&](point p) { u64 val=0; for(auto i=0; i!=D; i++) for(auto j=0; j!=POINT_K; j++) val+=p[i][j]; return (void*)uptr(val); };
+  for(auto v: gen) t.insert(v, hash(t.decode(v)));
   gen = std::vector<bstr>(); for(auto it=t.begin(); !it.end(); it++) gen.push_back(*it); //remove duplicates
 
   auto pivot = generate();
 
   std::vector<bstr> knn; int i=0; for(auto it=t.knnIterator(pivot); i!=k && !it.end(); it++, i++) knn.push_back(*it); 
+
+  std::vector<void*> knnp; i=0; for(auto it=t.knnIterator(pivot); i!=k && !it.end(); it++, i++) knnp.push_back(it.ptr()); 
+  bool ptr_eq=0;
+  for(auto j=0; j!=knn.size(); j++) ptr_eq &= hash(t.decode(knn[j])) == knnp[j];
 
   std::sort(gen.begin(), gen.end(), [&](bstr &b1, bstr &b2) { auto p1=t.decode(pivot), p2=t.decode(b1), p3=t.decode(b2); 
       return tree::euclid_dist(p1, p2) < tree::euclid_dist(p1, p3); });

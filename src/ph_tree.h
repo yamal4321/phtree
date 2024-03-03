@@ -60,7 +60,6 @@ struct PHTree {
     u64 sz() { return *(u64*)sz_ptr & ~-(1ull<<DH+1); } void set_sz(u64 sz) { *(u64*)sz_ptr=*(u64*)sz_ptr & -(1ull<<DH+1) | sz; }
     void **p() { return (void**)((char*)sz_ptr-(t==PSF? sizeof(void*)-sizeof(u64): pt_n(k())*sizeof(void*))); }
     u64 *id() { return (u64*)sz_ptr+1; }
-    void reset_pt(u64 pz) { p()[pz]=0; }
 
     u64 lb(u64 p1, u64 p2, u64 v) { for(u64 s=p2-p1+1; s!=0; s/=2) if(v<=(*this)[p1+s/2]) { p2=p1+s/2; } else { p1=p1+(s+1)/2; } return p1; }
     Ref<D> operator[](u64 pz) { return Ref<D>{id(), pz}; }
@@ -75,11 +74,10 @@ struct PHTree {
           Node::dealloc(n); n=n2;
         } else { if(t==LHC) { if(pz!=sz) { n[pz][sz-1]<<1; copy_backward(n.p()+pz, n.p()+sz, n.p()+sz+1); } } n.set_sz(sz+1); }
       } else{
-        for(auto i=-1; i>=d; i--) n.reset_pt(pz+i);
         if(sz-1<=(maxsz/2)) {
           u64 t2=(k-1==0? (h==H-1? PSF: INF): LHC); Node n2=Node::alloc(sz-1, k-1, t2);
-          if(t==AHC) { for(u64 i=0, j=0; i!=1ull<<D0; i++) if(n.p()[i]!=0 && i!=pz-1) { if(t2!=PSF )n2.p()[j]=n.p()[i]; n2[j]=i; j++; } }
-          else { if(t2!=PSF) { copy(n.p(), n.p()+pz-1, n2.p()); copy(n.p()+pz, n.p()+sz, n2.p()+pz-1); } n[pz-1]=0; if(pz!=sz) n[pz][sz-1]>>1; n2[0][sz-2]=n[0][sz-2]; }
+          if(t==AHC) { for(u64 i=0, j=0; i!=1ull<<D0; i++) if(n.p()[i]!=0 && i!=pz-1) { n2.p()[j]=n.p()[i]; n2[j]=i; j++; } }
+          else { copy(n.p(), n.p()+pz-1, n2.p()); copy(n.p()+pz, n.p()+sz, n2.p()+pz-1); n[pz-1]=0; if(pz!=sz) n[pz][sz-1]>>1; if(t2>AHC) n2[h%C]=u64(n[0]); else n2[0][sz-2]=n[0][sz-2]; }
           Node::dealloc(n); n=n2;
         } else { if(t==AHC) { n.p()[pz-1]=0; } else { n[pz-1]=0; if(pz!=sz) n[pz][sz-1]>>1; copy(n.p()+pz, n.p()+sz, n.p()+pz-1); } n.set_sz(sz-1); }
       }
@@ -95,11 +93,12 @@ struct PHTree {
 
     bstr operator*() { return path; }
     bool operator++(int) { return next(*this); }
+    void *ptr() { return n[pz-1].t==PSF? n[pz-1].p()[0]: Node(n[pz-1].p()[id[pz-1]]).p()[0]; }
 
     void upd_par(u64 pz) { if(pz!=0) { auto par=n[pz-1]; u64 pk=par.k(); par.p()[par.t==INF? 0: id[pz-1]]=n[pz].ptr(); } }
     u64 di(u64 p1, u64 p2) { return p2-p1/C*C; }
 
-    Node alloc_psf(u64 pz, const bstr &b) { Node n2=Node::alloc(di(pz+1, H), 0, PSF); if(pz+1!=H) n2[di(pz+1, pz+1)][di(pz+1, H-1)]=b[pz+1][H-1]; n2.p()[0]=0; return n2; }
+    Node alloc_psf(u64 pz, const bstr &b, void *data) { Node n2=Node::alloc(di(pz+1, H), 0, PSF); if(pz+1!=H) n2[di(pz+1, pz+1)][di(pz+1, H-1)]=b[pz+1][H-1]; n2.p()[0]=data; return n2; }
 
     void split(Node p, u64 pz2, const bstr &b, void *data=nullptr) {
       u64 p1=pz, p2=pz2, p3=(p.t==INF? pz+p.sz()-1: H-1);
@@ -108,7 +107,7 @@ struct PHTree {
         id[p2-1]=p2-p1; n[p1]=n[p2-1]=n2; upd_par(p1); }
       Node n2=Node::alloc(2, 1, LHC); u64 id1=p[di(p1, p2)], id2=b[p2], idx1=0, idx2=1;
       if(id1>id2) swap(idx1, idx2);
-      n2[idx1]=id1; n2[idx2]=id2; n2.p()[idx1]=p.p()[0]; n2.p()[idx2]=alloc_psf(p2, b).ptr(); Node(n2.p()[idx2]).p()[0]=data;
+      n2[idx1]=id1; n2[idx2]=id2; n2.p()[idx1]=p.p()[0]; n2.p()[idx2]=alloc_psf(p2, b, data).ptr(); Node(n2.p()[idx2]).p()[0]=data;
       n[p2]=n2; id[p2]=idx2; upd_par(p2); pz=p2;
       if(p2!=p3) {
         auto a1=Node::alloc(di(p2+1, p3+1), 0, p.t); n2.p()[idx1]=a1.ptr(); a1.p()[0]=p.p()[0]; 
@@ -119,14 +118,15 @@ struct PHTree {
       Node::dealloc(p);
     }
 
-    void merge(u64 pos) {
-      u64 p1=(pos==0 || n[pos-1].t!=INF? pos: pos-n[pos-1].sz()), p2=pos, p3=pos, p4=pos;
-      if(p2!=H-1 && Node(n[p2].p()[0]).t>AHC) { p3=p2+1; n[p2+1]=n[p2].p()[0]; p4=n[p2+1].t==PSF? H-1: p2+n[p2+1].sz(); }
-      Node n2=Node::alloc(di(p1, p4+1), 0, p4==H-1? PSF: INF); if(n2.t!=PSF) { n2.set_k(0); n2.set_sz(p4+1-p1); }
-      if(p1!=p2) { n2[di(p1, p1)][di(p1, p2-1)]=n[p2-1][di(p1, p1)][di(p1, p2-1)]; Node::dealloc(n[p2-1]); }
-      n2[di(p1, p2)]=u64(n[p2][0]);
-      if(p3!=p2) { Node n3=Node(n[p2].p()[0]); n2[di(p1, p3)][di(p1, p4)]=n3[di(p3, p3)][di(p3, p4)]; if(n2.t==INF) n2.p()[0]=n3.t==INF? n3.p()[0]: (void*)PSF; Node::dealloc(n3); } else if(p4!=H-1) { n2.p()[0]=n[p2].p()[0]; }
-      Node::dealloc(n[p2]); n[p1]=n2; pz=p1; upd_par(p1);
+    void merge(u64 h) {
+      if(h!=H-1) n[h+1]=Node(n[h].p()[0]);
+      u64 p1=(h!=0 && n[h-1].t==INF? h-id[h-1]: h), p2=h, p3=(h==H-1 || n[h+1].t<=AHC? h+1: (n[h+1].t==PSF? H: h+1+n[h+1].sz())), last=p1%C;
+      if(p1==p3-1) return;
+      Node n2=Node::alloc(p3-p1, 0, p3==H? PSF: INF);
+      if(p1!=p2) { n2[last][last+p2-p1-1]=n[p1][last%C][last%C+p2-p1-1]; Node::dealloc(n[p1]); last+=(p2-p1); }
+      n2[last]=n[p2][last%C]; n2.p()[0]=n[p2].p()[0]; Node::dealloc(n[p2]); last+=1;
+      if(p2+1!=p3) { n2[last][last+p3-(p2+1)-1]=n[p2+1][last%C][last%C+p3-(p2+1)-1]; n2.p()[0]=n[p2+1].p()[0]; Node::dealloc(n[p2+1]); }; 
+      n[p1]=n2; id[p1]=p3-p1; upd_par(p1);
     }
 
     static u64 cmp(u64 *a, u64 *a2, u64 p1, u64 p2) { p2++; u64 m1=-(1ull<<p1%C*D); for(u64 i=p1/C*C; i<p2; i+=C, m1=~0ull) { u64 bit=(a[i/C] ^ a2[i/C]) & m1; if(bit) { return i+pos(~(bit-1) & bit)/D-p1; } } return p2-p1; }
@@ -138,22 +138,23 @@ struct PHTree {
         } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz, bit=cmp(n[pz].id()-pz/C, (u64*)b.a, pz, pz+l-1); if(bit<l) id[pz]=bit; else { if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz]=l; id[pz+l-1]=l; n[pz+l-1]=n[pz]; } if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; if(bit<l) break; pz+=l; }
     }
 
-    void insert(const bstr &b) {
-      if(n[0].null()) { n[0]=alloc_psf(-1, b); return; }
+    void insert(const bstr &b, void *data=nullptr) {
+      if(n[0].null()) { n[0]=alloc_psf(-1, b, data); return; }
       find(b);
       if(pz!=H) {
-        if(n[pz].t==AHC) { n[pz].p()[id[pz]]=alloc_psf(pz, b).ptr(); n[pz].set_sz(n[pz].sz()+1);
-        } else if(n[pz].t==LHC) { auto n2=Node::shift(n[pz], id[pz], pz, 1); if(n2.sz_ptr!=n[pz].sz_ptr) { n[pz]=n2; upd_par(pz); } auto ins=alloc_psf(pz, b).ptr(); if(n[pz].t==LHC) { n[pz][id[pz]]=u64(b[pz]); n[pz].p()[id[pz]]=ins; } else { id[pz]=b[pz]; n[pz].p()[b[pz]]=ins; }
-        } else if(pz+id[pz]!=H) { split(n[pz], pz+id[pz], b); } }
+        if(n[pz].t==AHC) { n[pz].p()[id[pz]]=alloc_psf(pz, b, data).ptr(); n[pz].set_sz(n[pz].sz()+1);
+        } else if(n[pz].t==LHC) { auto n2=Node::shift(n[pz], id[pz], pz, 1); if(n2.sz_ptr!=n[pz].sz_ptr) { n[pz]=n2; upd_par(pz); } auto ins=alloc_psf(pz, b, data).ptr(); if(n[pz].t==LHC) { n[pz][id[pz]]=u64(b[pz]); n[pz].p()[id[pz]]=ins; } else { id[pz]=b[pz]; n[pz].p()[b[pz]]=ins; }
+        } else if(pz+id[pz]!=H) { split(n[pz], pz+id[pz], b, data); } }
     }
 
     void remove(const bstr &b) {
       if(n[0].null()) return;
       find(b);
       if(pz!=H) return;
-      if(n[pz-1].t==PSF) { Node::dealloc(n[pz-1]); pz-=id[pz-1]+1; } else { pz--; }
-      if(pz==-u64(1)) { n[0]=Node((void*)0); return; }
-      n[pz]=Node::shift(n[pz], id[pz]+1, pz, -1); upd_par(pz);
+      if(n[pz-1].t==PSF) pz-=id[pz-1]+1; else pz--;
+      if(pz==-u64(1)) { Node::dealloc(n[0]); n[0]=Node((void*)0); return; }
+      Node::dealloc(n[pz].p()[id[pz]]); n[pz].p()[id[pz]]=(void*)0; n[pz]=Node::shift(n[pz], id[pz]+1, pz, -1); upd_par(pz);
+      if(n[pz].t==PSF) { auto ptr=Node(n[pz].p()[0]).p()[0]; Node::dealloc(Node(n[pz].p()[0])); n[pz].p()[0]=ptr; }
       if(n[pz].t==PSF || n[pz].sz()==1) merge(pz);
     }
 
@@ -225,6 +226,7 @@ struct PHTree {
 
     bstr operator*() { return it.path; }
     bool operator++(int) { return next(); }
+    void *ptr() { return it.ptr(); }
     
     bool inside(u64 v, u64 l, u64 r) { return ((v & r) | l) == v; }
 
@@ -288,19 +290,20 @@ struct PHTree {
 
     Iter1DKNN(const bstr &pivot, Node root, phtree &_tree): pts(PtCmp{}), tree(_tree) { pts.push(Pt{pivot, 0.0, root, u64(0), u64(0), this, &tree}); c=tree.decode(pivot); bc=pivot; next(); }
 
-    void expand(Pt &pt) { 
-      if(pt.n.t == PSF) { pt.update_long(Node(nullptr), H-pt.h); pts.push(pt); 
-      } else if(pt.n.t == INF) { pt.update_long(Node(pt.n.p()[0]), pt.n.sz()); pts.push(pt); 
+    void expand(Pt &pt) {
+      if(pt.n.t == PSF) { pt.update_long(Node(pt.n.p()[0]), H-pt.h); pts.push(pt);
+      } else if(pt.n.t == INF) { pt.update_long(Node(pt.n.p()[0]), pt.n.sz()); pts.push(pt);
       } else if(pt.n.t == LHC) { auto n=pt.n; for(auto i=0; i!=pt.n.sz(); i++) { auto pt2=pt; pt2.update(Node(n.p()[i]), n[i]); pts.push(pt2); }
       } else { auto n=pt.n; for(auto i=0; i!=1ull<<D; i++) { if(n.p()[i]==0) continue; auto pt2=pt; pt2.update(Node(n.p()[i]), i); pts.push(pt2); }
       }
     }
 
     bool end() { return pts.empty(); }
-    void next() { while(!end() && pts.top().h != H) { auto pt=pts.top(); pts.pop(); expand(pt); } }
+    void next() { while(!end() && pts.top().h!=H) { auto pt=pts.top(); pts.pop(); expand(pt); } }
 
-    void operator++(int) { next(); }
-    bstr operator*() { auto pt=pts.top(); pts.pop(); return pt.path; }
+    void operator++(int) { pts.pop(); next(); }
+    bstr operator*() { auto pt=pts.top(); return pt.path; }
+    void *ptr() { auto pt=pts.top(); return pt.n.ptr(); }
   };
 
   struct IterRay {
@@ -310,6 +313,7 @@ struct PHTree {
 
     bstr operator*() { return it.path; }
     bool operator++(int) { return next(); }
+    void *ptr() { return it.ptr(); }
 
     double to_double(const point &_pt, u64 d) { double c=0, exp=1; for(auto i=0; i!=POINT_K; i++, exp*=1e64) c += _pt[d][i] * exp; return c; }
     bstr bounds(const bstr& curr, u64 h) { bstr ret=curr; u64 mask=~-(1ull << D/2); if(h<H-1) { ret[h+1][H]&0ull; ret[h+1][H]|(mask*ln[DK]); } return ret; }
@@ -344,7 +348,7 @@ struct PHTree {
 
   Iter1D begin(bool sp=true) { Iter1D it(stack, sp); it.reset(); it.begin(); return it; }
 
-  void insert(const bstr &a, bool sp=false) { stack.sp=sp; stack.reset(); stack.insert(a); }
+  void insert(const bstr &a, void *data=nullptr, bool sp=false) { stack.sp=sp; stack.reset(); stack.insert(a, data); }
   void remove(const bstr &a, bool sp=false) { stack.sp=sp; stack.reset(); stack.remove(a); }
 
   Iter1D pointIterator(const bstr &pt, bool sp=true) { Iter1D it(stack, sp); it.find(pt); if(it.pz != H) it.pz=-u64(1); return it; }

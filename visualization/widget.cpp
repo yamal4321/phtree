@@ -51,11 +51,14 @@ void Widget::paintEvent(QPaintEvent *e) {
     }
 
     ph2 tr2(1);
-    for(auto rect: rects) {
+    std::vector<ph2::point> encoded;
+    for(auto &rect: rects) {
       auto low = rect.topLeft(), top = rect.bottomRight();
       ph2::point rect2; rect2[0][0] = low.x(); rect2[1][0] = low.y(); rect2[2][0] = top.x(); rect2[3][0] = top.y();
-      tr2.insert(tr2.encode(rect2));
+      encoded.push_back(rect2);
     }
+
+    for(auto &rect: encoded) { tr2.insert(tr2.encode(rect), &rect); }
 
     p.setPen(QPen(QColor(0, 255, 0, 255), 2));
     for(auto it=tr2.begin(); !it.end(); it++) { auto pt=tr2.decode(*it); p.drawRect(pt[0][0], pt[1][0], pt[2][0]-pt[0][0], pt[3][0]-pt[1][0]); }
@@ -111,7 +114,7 @@ void Widget::paintEvent(QPaintEvent *e) {
     double pt[2]; pt[0]=width()/2; pt[1]=height()/2;
     p.drawLine(pt[0], pt[1], pt[0]+ray[0]*1000, pt[1]+ray[1]*1000);
     for(auto it=tr2.rayIterator(pt, ray); !it.end(); it++) { 
-      auto rect = tr2.decode(*it);
+      auto rect = *(ph2::point*)it.ptr();
       p.drawRect(rect[0][0], rect[1][0], rect[2][0] - rect[0][0], rect[3][0] - rect[1][0]); 
     }
 }
