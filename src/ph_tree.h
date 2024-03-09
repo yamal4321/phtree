@@ -175,12 +175,14 @@ struct PHTree {
 
     template <typename Filter>
     bool down(Filter &f) {
+      l1:
       while(pz!=H) {
-        if(n[pz].t==LHC) { id[pz]=0; while(!f()) { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) return next(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz][id[pz]]; pz++;
-        } else if(n[pz].t==AHC) { id[pz]=0; while(n[pz].p()[id[pz]] == 0 || !f()) { id[pz]=id[pz]+1 & DM; if(id[pz]==0) return next(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=id[pz]; pz++;
-        } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz; if(!f()) return next(f); n[pz+l-1]=n[pz]; if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz+l-1]=l; if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; pz+=l; }
+        if(n[pz].t==LHC) { id[pz]=0; while(!f()) { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) { if(!up(f)) goto l2; goto l1; } } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz][id[pz]]; pz++;
+        } else if(n[pz].t==AHC) { id[pz]=0; while(n[pz].p()[id[pz]] == 0 || !f()) { id[pz]=id[pz]+1 & DM; if(id[pz]==0) { if(!up(f)) goto l2; goto l1; } } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=id[pz]; pz++;
+        } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz; if(!f()) { if(!up(f)) goto l2; goto l1; } n[pz+l-1]=n[pz]; if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz+l-1]=l; if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; pz+=l; }
       }
-      return true;
+      l2:
+      return !end();
     }
 
     template <typename Filter>
@@ -198,12 +200,14 @@ struct PHTree {
 
     template <typename Filter>
     bool down_skip(Filter &f) {
+      l1:
       while(pz!=H) {
-        if(n[pz].t==LHC) { id[pz]=0; while(!f()) { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) return next_skip(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz][id[pz]]; pz++;
-        } else if(n[pz].t==AHC) { u64 l=f.lm[pz]&f.l[pz], r=f.rm[pz]|f.r[pz], p0=skip(DM, l, r); id[pz]=p0; while(n[pz].p()[id[pz]] == 0 || !f()) { id[pz]=skip(id[pz], l, r); if(id[pz]==p0) return next_skip(f); } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=id[pz]; pz++;
-        } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz; if(!f()) return next_skip(f); n[pz+l-1]=n[pz]; if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz+l-1]=l; if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; pz+=l; }
+        if(n[pz].t==LHC) { id[pz]=0; while(!f()) { id[pz]=id[pz]+1; if(id[pz]==n[pz].sz()) { if(!up_skip(f)) goto l2; goto l1; } } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=n[pz][id[pz]]; pz++;
+        } else if(n[pz].t==AHC) { u64 l=f.lm[pz]&f.l[pz], r=f.rm[pz]|f.r[pz], p0=skip(DM, l, r); id[pz]=p0; while(n[pz].p()[id[pz]] == 0 || !f()) { id[pz]=skip(id[pz], l, r); if(id[pz]==p0) { if(!up_skip(f)) goto l2; goto l1; } } if(pz+1!=H) n[pz+1]=n[pz].p()[id[pz]]; if(sp) path[pz]=id[pz]; pz++;
+        } else { u64 l=n[pz].t==INF? n[pz].sz(): H-pz; if(!f()) { if(!up_skip(f)) goto l2; goto l1; } n[pz+l-1]=n[pz]; if(n[pz].t==INF) n[pz+l]=n[pz].p()[0]; id[pz+l-1]=l; if(sp) path[pz][pz+l-1]=n[pz][pz%C][l-1]; pz+=l; }
       }
-      return true;
+      l2:
+      return !end();
     }
 
     template <typename Filter>
