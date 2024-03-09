@@ -38,13 +38,12 @@ struct Fixture: public benchmark::Fixture {
   using point = typename ph::point;
 
   int n=N;
-  std::vector<bstr> rects;
   ph t;
   bool is_set=false;
 
   void SetUp(::benchmark::State& state) {
     if(!is_set) {
-      rects = gen<D, H>(n);
+      auto rects = gen<D, H>(n);
       for(auto pt: rects) t.insert(pt);
       is_set=true;
     }
@@ -53,18 +52,17 @@ struct Fixture: public benchmark::Fixture {
 
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, rect_intersect, ${D}, ${H}, ${N})(benchmark::State& state) {
   constexpr u64 D=${D}, H=${H};
-  int i = 0;
   for (auto _ : state) {
       auto rect = gen<D, H>(1)[0];
       auto start = std::chrono::high_resolution_clock::now();
       auto it = t.intersectIterator(rect, false);
+      std::cout << "start" << std::endl << std::flush;
       int found=0; for(; !it.end(); it++, found++) { }
-      std::cout << found << std::endl;
-      i = (i + 1)%int(n);
+      std::cout << found << std::endl << std::flush;
       auto end = std::chrono::high_resolution_clock::now();
       auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
       state.SetIterationTime(found? elapsed_seconds.count()/double(found): elapsed_seconds.count());
-      benchmark::DoNotOptimize(it);
+      benchmark::DoNotOptimize(found);
   }
 }
 

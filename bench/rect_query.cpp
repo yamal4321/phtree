@@ -29,13 +29,12 @@ struct Fixture: public benchmark::Fixture {
   using point = typename ph::point;
 
   int n=N;
-  std::vector<bstr> pts;
   ph t;
   bool is_set=false;
 
   void SetUp(::benchmark::State& state) {
     if(!is_set) {
-      pts = gen<D, H>(n);
+      auto pts = gen<D, H>(n);
       for(auto pt: pts) t.insert(pt);
       is_set=true;
     }
@@ -72,12 +71,11 @@ BENCHMARK_TEMPLATE_DEFINE_F(Fixture, rect_query, ${D}, ${H}, ${N})(benchmark::St
     auto start = std::chrono::high_resolution_clock::now();
     auto it = t.rectIterator(lb, rb, false);
     int found=0; for(; !it.end(); it++, found++) { }
-    std::cout << found << std::endl;
     i = (i + 1)%int(n);
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
     state.SetIterationTime(found? elapsed_seconds.count()/double(found): elapsed_seconds.count());
-    benchmark::DoNotOptimize(it);
+    benchmark::DoNotOptimize(found);
   }
 }
 

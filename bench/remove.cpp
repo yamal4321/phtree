@@ -31,7 +31,6 @@ struct Fixture: public benchmark::Fixture {
 
   int n=N;
   std::vector<bstr> pts;
-  std::vector<bstr> to_insert;
   ph t;
   bool is_set=false;
 
@@ -39,8 +38,6 @@ struct Fixture: public benchmark::Fixture {
     if(!is_set) {
       pts = gen<D, H>(n);
       for(auto pt: pts) t.insert(pt);
-      pts.clear();
-      to_insert = gen<D, H>(n);
       is_set=true;
     }
   }
@@ -49,16 +46,12 @@ struct Fixture: public benchmark::Fixture {
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, remove, ${D}, ${H}, ${N})(benchmark::State& state) {
   int i = 0;
   for (auto _ : state) {
-    auto start = std::chrono::high_resolution_clock::now();
     t.remove(pts[i]);
     i = (i + 1)%int(n);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-    state.SetIterationTime(elapsed_seconds.count());
     benchmark::DoNotOptimize(t);
 
   }
 }
 
-BENCHMARK_REGISTER_F(Fixture, remove)->UseManualTime();
+BENCHMARK_REGISTER_F(Fixture, remove);
 BENCHMARK_MAIN();

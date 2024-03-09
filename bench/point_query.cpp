@@ -46,16 +46,12 @@ struct Fixture: public benchmark::Fixture {
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, point_query, ${D}, ${H}, ${N})(benchmark::State& state) {
   int i = 0;
   for (auto _ : state) {
-    auto start = std::chrono::high_resolution_clock::now();
     auto it = t.pointIterator(pts[i]);
     i = (i + 1)%int(n);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed_seconds = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
-    state.SetIterationTime(elapsed_seconds.count());
     benchmark::DoNotOptimize(it);
 
   }
 }
 
-BENCHMARK_REGISTER_F(Fixture, point_query)->UseManualTime();
+BENCHMARK_REGISTER_F(Fixture, point_query);
 BENCHMARK_MAIN();

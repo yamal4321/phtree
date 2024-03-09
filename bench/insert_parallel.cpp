@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
-#include "ph_tree.h"
 #include <vector>
 #include <iostream>
+#include "ph_tree_parallel.h"
 
 using u64 = std::uint64_t;
 
@@ -30,23 +30,29 @@ struct Fixture: public benchmark::Fixture {
 
   int n=N;
   std::vector<bstr> to_insert;
-  ph t;
+  std::vector<void*> to_insertp;
   bool is_set=false;
 
   void SetUp(::benchmark::State& state) {
     if(!is_set) {
       to_insert = gen<D, H>(n);
+      to_insertp = std::vector<void*>(n, nullptr);
       is_set=true;
     }
   }
 };
 
 BENCHMARK_TEMPLATE_DEFINE_F(Fixture, insert, ${D}, ${H}, ${N})(benchmark::State& state) {
-  int i = 0;
   for (auto _ : state) {
-    t.insert(to_insert[i]); 
-    i = (i + 1)%int(n);
-    benchmark::DoNotOptimize(t);
+    {
+      state.PauseTiming();
+      ph t;
+      state.ResumeTiming();
+      t.insert(to_insert, to_insertp, ${C}); 
+      state.PauseTiming();
+      benchmark::DoNotOptimize(t);
+    }
+    state.ResumeTiming();
   }
 }
 
