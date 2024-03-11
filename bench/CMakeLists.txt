@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-set (FLAG "-O3")
+set (FLAG "-O3 -std=c++20")
 
 add_subdirectory(benchmark)
 

@@ -11,7 +11,7 @@ dirs = [[dir, next(os.walk(dir))[2]] for dir in dirs]
 
 df = pd.DataFrame()
 
-names, D, H, N, T = [], [], [], [], []
+names, D, H, N, T, C = [], [], [], [], [], []
 for dir in dirs:
     name = dir[0][dir[0].rfind(os.path.sep)+1:]
     for file in dir[1]:
@@ -20,6 +20,7 @@ for dir in dirs:
         D.append(res[0])
         H.append(res[1])
         N.append(0 if len(res) == 2 else res[2])
+        C.append(1 if len(res) == 2 or len(res) == 3 else res[3])
         with open(os.path.join(dir[0], file), 'r') as file:
             js = json.load(file)
             T.append(float(js['benchmarks'][0]['real_time']))
@@ -29,10 +30,12 @@ df['D'] = D
 df['H'] = H 
 df['N'] = N 
 df['T'] = T 
+df['C'] = C 
 df['H'] = df['H'].astype(int)
 df['T'] = df['T'].astype(int);
 df['D'] = df['D'].astype(int);
 df['N'] = df['N'].astype(int);
+df['C'] = df['C'].astype(int);
 
 
 def plot(name):
@@ -52,7 +55,24 @@ def plot(name):
     for i, v in enumerate(Ns): plt.setp(ax[-1, i], xlabel='{:.2e}'.format(v))
     for i, v in enumerate(Ds): plt.setp(ax[i, 0], ylabel=v)
 
-plot("knn_query")
+def plot_cpu(name, dim):
+    Cs = [1, 2, 4, 8]
+    Ns = [100000, 1000000, 10000000]
+    fig, ax = plt.subplots(4, 3, sharey=True, sharex=True)
+    for x, n in enumerate(Ns):
+        for y, cpu in enumerate(Cs):
+            data = df[(df.name == name) & (df.C == cpu) & (df.N == n) & (df.D == dim)]
+            data = data.sort_values(by=['H'])
+
+            time = data['T'].to_list()
+            depth = data['H'].to_list()
+
+            ax[y, x].plot(depth, time)
+
+    for i, v in enumerate(Ns): plt.setp(ax[-1, i], xlabel='{:.2e}'.format(v))
+    for i, v in enumerate(Cs): plt.setp(ax[i, 0], ylabel=v)
+
+plot_cpu("remove_parallel", 8)
 
 plt.subplots_adjust(wspace=0, hspace=0)
 plt.margins(x=0, y=0)

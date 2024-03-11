@@ -86,6 +86,7 @@ bool test(u64 n) {
 
   auto nthreads = std::thread::hardware_concurrency();
   std::vector<bstr> enc; for(auto pt: gen) enc.push_back(t2.encode(pt));
+
   for(auto p: enc) { t1.insert(p); } t2.insert(enc, gen_ptrs(enc), nthreads);
   auto ins1=traverse1(t1), ins2=traverse2(t2);
   bool ins1_eq=true;

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-set (FLAG "-O3")
+set (FLAG "-O3 -std=c++20")
 
 set (Ds 1 2 4 8)
 set (Hs 1 2 4 8 16 32 64 128)
