@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-set (FLAG "-O3 -std=c++20")
+set (FLAG -O3 -std=c++20)
 
 set (Ds 1 2 4 8)
 set (Hs 1 2 4 8 16 32 64 128)
@@ -14,6 +14,7 @@ foreach(T ${TESTS})
       add_executable(${T}${D}_${H} ${T}${D}_${H}.cpp)
       #target_compile_options(${T}${D}_${H} PRIVATE -march=native ${FLAG} -fsanitize=undefined -fsanitize=address) //broken with ASLR in current kernel
       #target_link_options(${T}${D}_${H} PRIVATE -fsanitize=undefined -fsanitize=address)
+      target_compile_options(${T}${D}_${H} PRIVATE -march=native ${FLAG})
       add_test(NAME ${T}_${D}_${H} COMMAND ${T}${D}_${H})
     endforeach()
   endforeach()

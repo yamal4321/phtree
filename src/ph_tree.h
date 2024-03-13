@@ -112,9 +112,7 @@ struct PHTree {
       if(p2!=p3) {
         auto a1=Node::alloc(di(p2+1, p3+1), 0, p.t); n2.p()[idx1]=a1.ptr(); a1.p()[0]=p.p()[0]; 
         a1[di(p2+1, p2+1)][di(p2+1, p3)]=p[di(p1, p2+1)][di(p1, p3)]; if(p.t!=PSF) a1.set_sz(p3-p2);
-      } else if(p3==H-1) {
-        n2.p()[idx1]=Node::alloc(0, 0, PSF).ptr(); Node(n2.p()[idx1]).p()[0]=p.p()[0];
-      }
+      } else if(p3==H-1) { n2.p()[idx1]=Node::alloc(0, 0, PSF).ptr(); Node(n2.p()[idx1]).p()[0]=p.p()[0]; }
       Node::dealloc(p);
     }
 
