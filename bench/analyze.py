@@ -6,8 +6,8 @@ import matplotlib as mpl
 
 mpl.rcParams['axes.spines.left'] = False
 mpl.rcParams['axes.spines.right'] = False
-#mpl.rcParams['axes.spines.top'] = False
-#mpl.rcParams['axes.spines.bottom'] = False
+mpl.rcParams['axes.spines.top'] = False
+mpl.rcParams['axes.spines.bottom'] = False
 
 def parse_filename(name): return re.findall('([0-9]+)', name)
 
@@ -57,7 +57,10 @@ def plot(name):
             depth = data['H'].to_list()
 
             ax[y, x].grid(axis='y')
+            ax[y, x].grid(axis='x')
             ax[y, x].plot(depth, time)
+            ax[y, x].xaxis.set_tick_params(length=0)
+            ax[y, x].yaxis.set_tick_params(length=0)
 
     for i, v in enumerate(Ns): plt.setp(ax[-1, i], xlabel='{:.2e}'.format(v))
     for i, v in enumerate(Ds): plt.setp(ax[i, 0], ylabel=v)
@@ -83,7 +86,10 @@ def plot_cmp(name1, name2):
             time2[time2 < 0] = 0
             time2 = time2.to_list()
 
+            ax[y, x].xaxis.set_tick_params(length=0)
+            ax[y, x].yaxis.set_tick_params(length=0)
             ax[y, x].grid(axis='y')
+            ax[y, x].grid(axis='x')
             ax[y, x].plot(depth, time1, label=name1)
             ax[y, x].plot(depth, time2, label=name2)
 
@@ -92,19 +98,22 @@ def plot_cmp(name1, name2):
     for i, v in enumerate(Ns): plt.setp(ax[-1, i], xlabel='{:.2e}'.format(v))
     for i, v in enumerate(Ds): plt.setp(ax[i, 0], ylabel=v)
 
-def plot_cpu(name, dim, name2=str()):
-    Cs = [1, 2, 4, 8]
+def plot_cpu(name, cpu, name2=str()):
+    Ds = [1, 2, 4, 8]
     Ns = [100000, 1000000, 10000000]
     fig, ax = plt.subplots(4, 3, sharey=True, sharex=True)
     for x, n in enumerate(Ns):
-        for y, cpu in enumerate(Cs):
+        for y, dim in enumerate(Ds):
             data = df[(df.name == name) & (df.C == cpu) & (df.N == n) & (df.D == dim)]
             data = data.sort_values(by=['H'])
 
             time = [float(x) for x in data['T'].to_list()]
             depth = data['H'].to_list()
 
+            ax[y, x].xaxis.set_tick_params(length=0)
+            ax[y, x].yaxis.set_tick_params(length=0)
             ax[y, x].grid(axis='y')
+            ax[y, x].grid(axis='x')
             ax[y, x].plot(depth, time, label=name)
 
             if(name2!=str()):
@@ -118,12 +127,47 @@ def plot_cpu(name, dim, name2=str()):
     ax[0, 0].legend()
 
     for i, v in enumerate(Ns): plt.setp(ax[-1, i], xlabel='{:.2e}'.format(v))
-    for i, v in enumerate(Cs): plt.setp(ax[i, 0], ylabel=v)
+    for i, v in enumerate(Ds): plt.setp(ax[i, 0], ylabel=v)
 
-#plot_cpu("insert_parallel", 4, "insert")
-#plot("point_query")'
-plot_cmp("intersect_query", "intersect_query_simd")
+def plot_cpus(name, name2=str()):
+    Ds = [1, 2, 4, 8]
+    Cs = [2, 4, 8]
+    Ns = [100000, 1000000, 10000000]
+    fig, ax = plt.subplots(4, 3, sharey=True, sharex=True)
+    for x, n in enumerate(Ns):
+        for y, dim in enumerate(Ds):
+            ax[y, x].xaxis.set_tick_params(length=0)
+            ax[y, x].yaxis.set_tick_params(length=0)
 
-plt.subplots_adjust(wspace=0, hspace=0)
+            if(name2!=str()):
+                data = df[(df.name == name2) & (df.D == dim) & (df.N == n)]
+                data = data.sort_values(by=['H'])
+
+                time = data['T'].to_list()
+                depth = data['H'].to_list()
+                ax[y, x].plot(depth, time, label=name+str("_cpu_")+str(1))
+
+            for cpu in Cs:
+                data = df[(df.name == name) & (df.C == cpu) & (df.N == n) & (df.D == dim)]
+                data = data.sort_values(by=['H'])
+
+                time = [float(x) for x in data['T'].to_list()]
+                depth = data['H'].to_list()
+
+                ax[y, x].grid(axis='y')
+                ax[y, x].grid(axis='x')
+                ax[y, x].plot(depth, time, label=name+str("_cpu_")+str(cpu))
+
+    ax[0, 0].legend()
+
+    for i, v in enumerate(Ns): plt.setp(ax[-1, i], xlabel='{:.2e}'.format(v))
+    for i, v in enumerate(Ds): plt.setp(ax[i, 0], ylabel=v)
+
+#plot_cpus("remove_parallel", "remove")
+#plot_cpu("insert_parallel", 8, "insert")
+plot("intersect_query")
+#plot_cmp("intersect_query", "intersect_query_simd")
+
+plt.subplots_adjust(wspace=0, hspace=0.1)
 plt.margins(x=0, y=0)
 plt.show()
