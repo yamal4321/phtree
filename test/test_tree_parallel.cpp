@@ -61,7 +61,7 @@ struct BasePHTree {
 
 bool test(u64 n) {
   using ph1=BasePHTree;
-  using ph2=PHTree<D, H>;
+  using ph2=PHTreeParallel<D, H>;
   u64 POINT_K = ph2::POINT_K;
   using bstr=ph2::bstr;
   using pt=Point<D, H>;

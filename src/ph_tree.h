@@ -15,15 +15,22 @@ using uptr=std::uintptr_t;
 using std::swap;
 using namespace std;
 
-constexpr void assertions() { static_assert(alignof(void*)>=alignof(u64)); static_assert(CHAR_BIT==8); static_assert(alignof(void*) >= 4); static_assert(alignof(void*)==sizeof(void*)); static_assert(alignof(u64*)==sizeof(u64*)); static_assert(sizeof(u64)==sizeof(unsigned long long)); }
 
-template <u64 D0, u64 H>
+template <u64 D0, u64 H, bool use_simd=false>
 struct PHTree {
+  constexpr void assertions() { 
+    static_assert(alignof(void*)>=alignof(u64)); 
+    static_assert(CHAR_BIT==8); 
+    static_assert(alignof(void*) >= 4); 
+    static_assert(alignof(void*)==sizeof(void*)); 
+    static_assert(alignof(u64*)==sizeof(u64*)); 
+    static_assert(sizeof(u64)==sizeof(unsigned long long)); }
+
   static constexpr u64 ln[7]={0xffffffffffffffff, 0x5555555555555555, 0x1111111111111111, 0x0101010101010101, 0x0001000100010001, 0x0000000100000001, 0x0000000000000001};
   static constexpr u64 pos(u64 v) { return sizeof(unsigned long long)*8 - __builtin_clzll(v) - 1; }
   static constexpr u64 posu(u64 v) { return pos(2*v-1); }
   static constexpr u64 DK=posu(D0), D=1ull<<DK, C=64ull/D, DM=~-(1ull<<D), POINT_K=(H+63)/64, DH=max(max(D, u64(2)), u64(1)<<posu(pos(H)+1));
-  using phtree=PHTree<D, H>;
+  using phtree=PHTree<D, H, use_simd>;
   using bstr=Bitstring<D, H>;
   using point=Point<D, H>;
   using encoder=Encoder<D, H>;
@@ -32,7 +39,7 @@ struct PHTree {
   struct Node;
   struct Iter1D;
   Iter1D stack; bool sign_preprocessor=false, float_preprocessor=false;
-  PHTree(bool _sign_preprocessor=false, bool _float_preprocessor=false): stack(), sign_preprocessor(_sign_preprocessor), float_preprocessor(_float_preprocessor) { assertions(); }
+  PHTree(bool _sign_preprocessor=false, bool _float_preprocessor=false): stack(), sign_preprocessor(_sign_preprocessor), float_preprocessor(_float_preprocessor) { assertions(); static_assert(D<64, "max D=32"); }
   ~PHTree() { stack.clean(stack.n[0]); }
 
   //Node layout: 
@@ -232,8 +239,8 @@ struct PHTree {
     
     bool inside(u64 v, u64 l, u64 r) { return ((v & r) | l) == v; }
 
-    bool down(u64 *a, u64 p1, u64 p2) { for(; p1<=p2; p1++) if(!down(p1, a[p1/C]>>p1%C*D & DM)) return false; return true; }
     bool down(u64 p1, u64 v) { u64 ll=lm[p1] & l[p1], rr=rm[p1] | r[p1]; if(!inside(v, ll, rr)) return false; if(p1+1!=H) { lm[p1+1]=u64(lm[p1]) & ~((ll^v) & DM); rm[p1+1]=u64(rm[p1]) | ((rr^v) & DM); } return true; }
+    bool down(u64 *a, u64 p1, u64 p2) { for(; p1<=p2; p1++) if(!down(p1, a[p1/C]>>p1%C*D & DM)) return false; return true; }
     bool down_simd(u64 *a, u64 p1, u64 p2) {
       for(u64 p1_m=-(1ull<<p1%C*D), p2_m=~-(1ull<<p2%C*D<<D), mod=p1%C; p1<=p2; p1+=C-mod, p1_m=~0ull, mod=0) {
         u64 ll=lm[p1]*ln[DK] & l.a[p1/C], rr=rm[p1]*ln[DK] | r.a[p1/C], _ll=lm[p1]*ln[DK], _rr=rm[p1]*ln[DK], v=a[p1/C], bl=(ll^v) & p1_m, br=(rr^v) & p1_m;
@@ -354,7 +361,7 @@ struct PHTree {
   void remove(const bstr &a, bool sp=false) { stack.sp=sp; stack.reset(); stack.remove(a); }
 
   Iter1D pointIterator(const bstr &pt, bool sp=true) { Iter1D it(stack, sp); it.find(pt); if(it.pz != H) it.pz=-u64(1); return it; }
-  Iter2D rectIterator(const bstr &l, const bstr &r, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_rect(l, r); query.begin(); return query; }
+  Iter2D rawRectIterator(const bstr &l, const bstr &r, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_rect(l, r); query.begin(); return query; }
   Iter2D intersectIterator(const bstr &rect, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_intersect(rect); query.begin(); return query; }
   Iter2D includeIterator(const bstr &rect, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_include(rect); query.begin(); return query; }
   Iter1DKNN<euclid_dist> knnIterator(const bstr &a, bool sp=true) { Iter1DKNN<euclid_dist> it2(a, stack.n[0], *this); return it2; }

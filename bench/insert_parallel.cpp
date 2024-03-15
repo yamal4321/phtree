@@ -1,60 +1,37 @@
-#include <benchmark/benchmark.h>
-#include <vector>
-#include <iostream>
 #include "ph_tree_parallel.h"
+#include "utils.h"
+#include <fstream>
+#include <chrono>
+#include <utility>
+#include <vector>
 
-using u64 = std::uint64_t;
+constexpr u64 D=${D};
+constexpr u64 H=${H};
+constexpr u64 N=${N};
+constexpr u64 C=${C};
+constexpr u64 seed=0;
 
-template <u64 D, u64 H> std::vector<typename PHTree<D, H>::bstr> gen(int n) {
-  using ph = PHTree<D, H>;
-  using bstr = typename ph::bstr;
-  using point = typename ph::point;
+using bstr=PHTreeParallel<D, H>::bstr;
 
-  std::vector<bstr> ret;
+int main() {
+  srand(seed);
+  
+  auto insert=[&]() {
+    PHTreeParallel<D, H> tr;
+    std::vector<bstr> pts; for(auto i=0; i!=N; i++) pts.push_back(tr.encode(gen_pt<D, H>()));
+    std::vector<void*> ptr(N, nullptr);
 
-  ph tr;
-  for(auto i=0; i!=n; i++) {
-    point p;
-    for(auto j=0; j!=D; j++) for(auto k=0; k!=ph::POINT_K; k++) p[j][k] = (u64(rand()) << 32) | u64(rand());
-    ret.push_back(tr.encode(p));
-  }
+    auto t1=std::chrono::high_resolution_clock::now();
+    tr.insert(pts, ptr, C);
+    auto t2=std::chrono::high_resolution_clock::now();
 
-  return ret;
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count()/double(pts.size());
+  };
+
+  double s=0; for(auto i=0; i!=1e1; i++) s+=insert()*1e-1;
+  std::string file(std::string("insert_parallel") + std::string("_") + std::to_string(D) + std::string("_") + std::to_string(H) + std::string("_") + std::to_string(N) + std::string("_") + std::to_string(C));
+  std::ofstream fout(std::string("benchmarks/insert_parallel/") + file);
+  fout << int(s);
+
+  return 0;
 }
-
-template <u64 D, u64 H, u64 N>
-struct Fixture: public benchmark::Fixture {
-  using ph = PHTree<D, H>;
-  using bstr = typename ph::bstr;
-  using point = typename ph::point;
-
-  int n=N;
-  std::vector<bstr> to_insert;
-  std::vector<void*> to_insertp;
-  bool is_set=false;
-
-  void SetUp(::benchmark::State& state) {
-    if(!is_set) {
-      to_insert = gen<D, H>(n);
-      to_insertp = std::vector<void*>(n, nullptr);
-      is_set=true;
-    }
-  }
-};
-
-BENCHMARK_TEMPLATE_DEFINE_F(Fixture, insert, ${D}, ${H}, ${N})(benchmark::State& state) {
-  for (auto _ : state) {
-    {
-      state.PauseTiming();
-      ph t;
-      state.ResumeTiming();
-      t.insert(to_insert, to_insertp, ${C}); 
-      state.PauseTiming();
-      benchmark::DoNotOptimize(t);
-    }
-    state.ResumeTiming();
-  }
-}
-
-BENCHMARK_REGISTER_F(Fixture, insert);
-BENCHMARK_MAIN();

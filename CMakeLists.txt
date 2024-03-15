@@ -7,5 +7,5 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/libmorton)
 
 enable_testing()
 #add_subdirectory(bench)
-add_subdirectory(test)
-#add_subdirectory(visualization)
+#add_subdirectory(test)
+add_subdirectory(visualization)

@@ -1,57 +1,34 @@
-#include <benchmark/benchmark.h>
 #include "ph_tree.h"
-#include <vector>
-#include <iostream>
+#include "utils.h"
+#include <fstream>
 #include <chrono>
+#include <utility>
+#include <vector>
 
-using u64 = std::uint64_t;
+constexpr u64 D=${D};
+constexpr u64 H=${H};
+constexpr u64 N=${N};
+constexpr u64 seed=0;
 
-template <u64 D, u64 H> std::vector<typename PHTree<D, H>::bstr> gen(int n) {
-  using ph = PHTree<D, H>;
-  using bstr = typename ph::bstr;
-  using point = typename ph::point;
+using bstr=PHTree<D, H>::bstr;
 
-  std::vector<bstr> ret;
+int main() {
+  srand(seed);
+  auto tr=gen_tree<D, H>(N);
+  std::vector<bstr> pts; auto it=tr.begin(); for(auto i=0; i!=1e4 && !it.end(); i++, it++) pts.push_back(*it);
 
-  ph tr;
-  for(auto i=0; i!=n; i++) {
-    point p;
-    for(auto j=0; j!=D; j++) for(auto k=0; k!=ph::POINT_K; k++) p[j][k] = (u64(rand()) << 32) | u64(rand());
-    ret.push_back(tr.encode(p));
-  }
+  auto remove=[&](bstr &pt) {
+    auto t1=std::chrono::high_resolution_clock::now();
+    tr.remove(pt);
+    auto t2=std::chrono::high_resolution_clock::now();
 
-  return ret;
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count();
+  };
+
+  double s=0; for(auto i=0; i!=1e4 && i<pts.size(); i++) s+=remove(pts[i])/double(pts.size());
+  std::string file(std::string("remove") + std::string("_") + std::to_string(D) + std::string("_") + std::to_string(H) + std::string("_") + std::to_string(N));
+  std::ofstream fout(std::string("benchmarks/remove/") + file);
+  fout << int(s);
+
+  return 0;
 }
-
-template <u64 D, u64 H, u64 N>
-struct Fixture: public benchmark::Fixture {
-  using ph = PHTree<D, H>;
-  using bstr = typename ph::bstr;
-  using point = typename ph::point;
-
-  int n=N;
-  std::vector<bstr> pts;
-  ph t;
-  bool is_set=false;
-
-  void SetUp(::benchmark::State& state) {
-    if(!is_set) {
-      pts = gen<D, H>(n);
-      for(auto pt: pts) t.insert(pt);
-      is_set=true;
-    }
-  }
-};
-
-BENCHMARK_TEMPLATE_DEFINE_F(Fixture, remove, ${D}, ${H}, ${N})(benchmark::State& state) {
-  int i = 0;
-  for (auto _ : state) {
-    t.remove(pts[i]);
-    i = (i + 1)%int(n);
-    benchmark::DoNotOptimize(t);
-
-  }
-}
-
-BENCHMARK_REGISTER_F(Fixture, remove);
-BENCHMARK_MAIN();

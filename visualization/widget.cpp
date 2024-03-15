@@ -79,7 +79,7 @@ void Widget::paintEvent(QPaintEvent *e) {
     pivot = ph::point{}; pivot[0][0] = points[3].pz.x(); pivot[1][0] = points[3].pz.y();
     auto low = ph::point{}; low[0][0] = pivot[0][0] - 50; low[1][0] = pivot[1][0] - 50;
     auto top = ph::point{}; top[0][0] = pivot[0][0] + 50; top[1][0] = pivot[1][0] + 50;
-    i=0; for(auto it=tr.rectIterator(tr.encode(low), tr.encode(top)); !it.end(); it++, i++) { auto pt=tr.decode(*it); p.drawPoint(pt[0][0], pt[1][0]); }
+    i=0; for(auto it=tr.rawRectIterator(tr.encode(low), tr.encode(top)); !it.end(); it++, i++) { auto pt=tr.decode(*it); p.drawPoint(pt[0][0], pt[1][0]); }
     p.setPen(QPen(QColor(0, 0, 255, 255), 2));
     p.drawRect(low[0][0], low[1][0], 100, 100);
     p.setPen(QPen(QColor(0, 0, 255, 255), 5));

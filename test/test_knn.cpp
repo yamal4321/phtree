@@ -47,7 +47,6 @@ bool test_rectQuery(int n, int k) {
 
 int main() {
   srand(s);
-  assertions();
   std::cout << "seed: " << s << std::endl;
   bool val=0;
   val |= test_rectQuery(1e5, 1e5/3);

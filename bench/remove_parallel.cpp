@@ -1,60 +1,37 @@
-#include <benchmark/benchmark.h>
-#include <vector>
-#include <iostream>
-#include <chrono>
 #include "ph_tree_parallel.h"
+#include "utils.h"
+#include <fstream>
+#include <chrono>
+#include <utility>
+#include <vector>
 
-using u64 = std::uint64_t;
+constexpr u64 D=${D};
+constexpr u64 H=${H};
+constexpr u64 N=${N};
+constexpr u64 C=${C};
+constexpr u64 seed=0;
 
-template <u64 D, u64 H> std::vector<typename PHTree<D, H>::bstr> gen(int n) {
-  using ph = PHTree<D, H>;
-  using bstr = typename ph::bstr;
-  using point = typename ph::point;
+using bstr=PHTreeParallel<D, H>::bstr;
 
-  std::vector<bstr> ret;
+int main() {
+  srand(seed);
 
-  ph tr;
-  for(auto i=0; i!=n; i++) {
-    point p;
-    for(auto j=0; j!=D; j++) for(auto k=0; k!=ph::POINT_K; k++) p[j][k] = (u64(rand()) << 32) | u64(rand());
-    ret.push_back(tr.encode(p));
-  }
+  auto insert=[&]() {
+    PHTreeParallel<D, H> tr;
+    for(auto i=0; i!=N; i++) tr.insert(tr.encode(gen_pt<D, H>()), nullptr, 0);
+    std::vector<bstr> pts; auto it=tr.begin(); for(auto i=0; i!=1e4 && !it.end(); i++, it++) pts.push_back(*it);
 
-  return ret;
+    auto t1=std::chrono::high_resolution_clock::now();
+    tr.remove(pts, C);
+    auto t2=std::chrono::high_resolution_clock::now();
+
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(t2-t1).count()/double(pts.size());
+  };
+
+  double s=0; for(auto i=0; i!=1e1; i++) s+=insert()*1e-1;
+  std::string file(std::string("remove_parallel") + std::string("_") + std::to_string(D) + std::string("_") + std::to_string(H) + std::string("_") + std::to_string(N) + std::string("_") + std::to_string(C));
+  std::ofstream fout(std::string("benchmarks/remove_parallel/") + file);
+  fout << int(s);
+
+  return 0;
 }
-
-template <u64 D, u64 H, u64 N>
-struct Fixture: public benchmark::Fixture {
-  using ph = PHTree<D, H>;
-  using bstr = typename ph::bstr;
-  using point = typename ph::point;
-
-  int n=N;
-  std::vector<bstr> pts;
-  bool is_set=false;
-
-  void SetUp(::benchmark::State& state) {
-    if(!is_set) {
-      pts = gen<D, H>(n);
-      is_set=true;
-    }
-  }
-};
-
-BENCHMARK_TEMPLATE_DEFINE_F(Fixture, remove, ${D}, ${H}, ${N})(benchmark::State& state) {
-  for (auto _ : state) {
-    {
-      state.PauseTiming();
-      ph t;
-      for(auto pt: pts) t.insert(pt);
-      state.ResumeTiming();
-      t.remove(pts, ${C});
-      state.PauseTiming();
-      benchmark::DoNotOptimize(t);
-    }
-    state.ResumeTiming();
-  }
-}
-
-BENCHMARK_REGISTER_F(Fixture, remove);
-BENCHMARK_MAIN();

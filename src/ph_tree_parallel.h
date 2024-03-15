@@ -18,19 +18,19 @@ using uptr=std::uintptr_t;
 using std::swap;
 using namespace std;
 
-constexpr void assertions() { 
-  static_assert(alignof(void*)>=alignof(u64)); 
-  static_assert(CHAR_BIT==8); 
-  static_assert(alignof(void*)==sizeof(void*)); 
-  static_assert(alignof(u64*)==sizeof(u64*)); 
-  static_assert(sizeof(void*)>=sizeof(u64));
-  static_assert(sizeof(u64)==sizeof(unsigned long long)); 
-  static_assert(sizeof(u64) >= sizeof(std::atomic_flag));
-  static_assert(alignof(u64) >= alignof(std::atomic_flag));
-}
 
 template <u64 D0, u64 H>
-struct PHTree {
+struct PHTreeParallel {
+  constexpr void assertions() { 
+    static_assert(alignof(void*)>=alignof(u64)); 
+    static_assert(CHAR_BIT==8); 
+    static_assert(alignof(void*)==sizeof(void*)); 
+    static_assert(alignof(u64*)==sizeof(u64*)); 
+    static_assert(sizeof(void*)>=sizeof(u64));
+    static_assert(sizeof(u64)==sizeof(unsigned long long)); 
+    static_assert(sizeof(u64) >= sizeof(std::atomic_flag));
+    static_assert(alignof(u64) >= alignof(std::atomic_flag)); }
+
   static constexpr u64 ln[7]={0xffffffffffffffff, 0x5555555555555555,
     0x1111111111111111, 0x0101010101010101, 0x0001000100010001,
     0x0000000100000001, 0x0000000000000001};
@@ -40,7 +40,7 @@ struct PHTree {
   static constexpr u64 DK=posu(D0), D=1ull<<DK, C=64ull/D, DM=~-(1ull<<D),
                    POINT_K=(H+63)/64, DH=max(max(D, u64(2)),
                        u64(1)<<posu(pos(H)+1));
-  using phtree=PHTree<D, H>;
+  using phtree=PHTreeParallel<D, H>;
   using bstr=Bitstring<D, H>;
   using point=Point<D, H>;
   using encoder=Encoder<D, H>;
@@ -50,8 +50,8 @@ struct PHTree {
   struct Iter1D;
   Iter1D stack; bool sign_preprocessor=false, float_preprocessor=false;
   std::atomic_flag flag;
-  PHTree(bool _sign_preprocessor=false, bool _float_preprocessor=false): stack(), sign_preprocessor(_sign_preprocessor), float_preprocessor(_float_preprocessor) { assertions(); flag.clear(); }
-  ~PHTree() { stack.clean(stack.n[0]); }
+  PHTreeParallel(bool _sign_preprocessor=false, bool _float_preprocessor=false): stack(), sign_preprocessor(_sign_preprocessor), float_preprocessor(_float_preprocessor) { assertions(); static_assert(D<64, "max D=32"); flag.clear(); }
+  ~PHTreeParallel() { stack.clean(stack.n[0]); }
 
   //Node layout: 
   //[node_ptrs][sz][atomic_flag][ids], types: [void*
@@ -416,7 +416,7 @@ struct PHTree {
   }
 
   Iter1D pointIterator(const bstr &pt, bool sp=true) { Iter1D it(stack, sp); it.find(pt); if(it.pz != H) it.pz=-u64(1); return it; }
-  Iter2D rectIterator(const bstr &l, const bstr &r, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_rect(l, r); query.begin(); return query; }
+  Iter2D rawRectIterator(const bstr &l, const bstr &r, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_rect(l, r); query.begin(); return query; }
   Iter2D intersectIterator(const bstr &rect, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_intersect(rect); query.begin(); return query; }
   Iter2D includeIterator(const bstr &rect, bool sp=true) { Iter1D it(stack, sp); Iter2D query(it, *this, sp); query.set_include(rect); query.begin(); return query; }
   Iter1DKNN<euclid_dist> knnIterator(const bstr &a, bool sp=true) { Iter1DKNN<euclid_dist> it2(a, stack.n[0], *this); return it2; }

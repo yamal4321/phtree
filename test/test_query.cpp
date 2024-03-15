@@ -1,123 +1,63 @@
-#include <cstdint>
+#include "ph_tree.h"
 #include <vector>
-#include <functional>
-#include "../ph_tree.h"
-#include "../bitstring.h"
+#include <algorithm>
+#include <cstdint>
+
+using u64=std::uint64_t;
+using u32=std::uint32_t;
+
+u64 seed=0;
 
 constexpr u64 D=${D};
 constexpr u64 H=${H};
 
-using bstr=Bitstring<D, H>;
-using tree=PHTree<D, H>;
-
-u64 s=time(0);
-
-bool inside(u64 v, u64 l, u64 r) { return (v & r | l) == v; }
-constexpr u64 pos(u64 v) { return sizeof(unsigned long long)*8 - __builtin_clzll(v) - 1; }
-constexpr u64 posu(u64 v) { return pos(2*v-1); }
-
-
-template <u64 D> struct Node_raw {
-  int sz, h;
-  Node_raw<D> *a[1ull<<D];
-
-  Node_raw() { sz=h=0; std::fill(a, a+(1ull<<D), nullptr); }
-};
-
-template <u64 D, u64 H> struct PHTree_raw {
-  ~PHTree_raw() { clean(root); }
-  Node_raw<D> *root=0; u64 pz;
-
-  Node_raw<D> *find(bstr b) {
-    pz=0;
-    for(auto n=root; ; pz++) {
-      if(n->a[b[pz]]==nullptr) return n;
-      n=n->a[b[pz]];
-    }
-  }
-
-  void insert(bstr b) {
-    if(root==0) { root=new Node_raw<D>(); }
-    auto n=find(b);
-    for(; pz!=H;) {
-      n->a[b[pz]]=new Node_raw<D>();
-      n->sz++;
-      n=n->a[b[pz]];
-      pz++;
-    }
-  }
-
-  void remove(bstr b) {
-    if(root==0) return;
-    Node_raw<D> *stack[H+1]; stack[0]=root;
-    for(pz=0; pz!=H; pz++) {
-      if(stack[pz]->a[b[pz]]==0) { return; }
-      stack[pz+1]=stack[pz]->a[b[pz]];
-    }
-    for(pz=H; pz!=-u64(1); pz--) { if(stack[pz]->sz==0) { delete stack[pz]; if(pz>0) { stack[pz-1]->a[b[pz-1]]=nullptr; stack[pz-1]->sz--; } if(pz==0) root=0; } }
-  }
-
-  std::vector<bstr> traverse() {
-    std::vector<bstr> ret;
-    std::function<void(bstr, u64, Node_raw<D> *)> traverse_impl = [&](bstr str, u64 d, Node_raw<D>* n) {
-      if(d==H) { ret.push_back(str); return ; }
-      for(u64 i=0ull; i!=(1ull<<D); i++) { if(n->a[i]!=0) { str[d]=i; traverse_impl(str, d+1, n->a[i]); } }
-    };
-    if(root==0) return ret;
-    traverse_impl(bstr(), 0ull, root); return ret;
-  }
-
-  void traverse(std::vector<bstr>& v, bstr a, bstr b, Node_raw<D> *n, bstr path=bstr(), u64 am=~0ull, u64 bm=0ull, u64 pz=0) {
-    if(pz==H) { v.push_back(path); return; }
-    for(u64 i=0; i!=1ull<<D; i++) {
-      u64 l=a[pz] & am, r=b[pz] | bm;
-      if(n->a[i]==nullptr) continue;
-      if(!inside(i, l & ~-(1ull<<D), r & ~-(1ull<<D))) continue;
-      path[pz]=i; traverse(v, a, b, n->a[i], path, am & ~((l^r) & i), bm | ((l^r) & ~i), pz+1);
-    } 
-  }
-
-  void clean(Node_raw<D> *node) {
-    if(node==0) return;
-    for(u64 i=0; i!=1ull<<D; i++) if(node->a[i]) { clean(node->a[i]); }
-    delete node;
-  }
-};
-
-std::vector<bstr> traverse(PHTree<D, H> &t1) {
-  std::vector<bstr> p2;
-  for(auto it=t1.begin(); !it.end(); it++) { auto pt=*it; p2.push_back(*(bstr*)&pt); }
-  return p2;
+template <u64 D, u64 H> typename PHTree<D, H>::point gen_pt() {
+  using ph=PHTree<D, H>;
+  typename ph::point ret;
+  for(auto d=0; d!=D; d++) 
+    for(auto i=0; i!=ph::POINT_K; i++) 
+      ret[d][i]= (u64(rand()) << 32) | u32(rand());
+  return ret;
 }
 
-bool test_rectQuery(int n) {
-  PHTree_raw<D, H> t1; PHTree<D, H> t2;
-  bstr l, r;
-  for(u64 j=0; j<H*D; j+=64) { l.a[j/64]=u64(rand())<<32 | rand(); r.a[j/64]=(u64(rand())<<32 | rand()); } //partial
-  for(u64 j=0, m=~-(1ull<<D); j!=H; j++) { u64 a=l[j], b=r[j], bits=m; while(bits) { u64 bit=~(bits-1ull) & bits; if((a&bit) > (b&bit)) { l[j]=u64(l[j]) ^ bit; r[j]=u64(r[j]) ^ bit; m ^= bit; /* std::cout << "bit: " << j << " " << pos(bit) << std::endl; */} bits ^= bit; } }
-
-  std::vector<bstr> gen;
-  for(auto i=0; i!=n; i++) { bstr s; for(auto j=0; j<H*D; j+=64) s.a[j/64]=u64(rand())<<32 | rand(); gen.push_back(s); }
-
-  for(auto v: gen) t1.insert(v);
-  for(auto v: gen) t2.insert(v);
-
-  std::vector<bstr> found1; t1.traverse(found1, l, r, t1.root);
-  std::vector<bstr> found2; for(auto it2=t2.rectIterator(l, r, true); !it2.end(); it2++) found2.push_back(*it2);
- 
-  std::cout << found1.size() << std::endl << std::flush;
-  std::cout << found2.size() << std::endl << std::flush;
-
-  bool query_eq=true;
-  if(found1.size()!=found2.size()) query_eq=false; else for(auto i=0; i!=found1.size(); i++) query_eq &= (found1[i] == found2[i]);
-  return query_eq? 0: 1;
+template <u64 D, u64 H> typename PHTree<D, H>::point gen_rect() {
+  using ph=PHTree<D, H>;
+  auto ret=gen_pt<D, H>();
+  for(auto d=0; d!=D/2; d++)
+    for(auto j=ph::POINT_K-1; j!=-1; j--) {
+      if(ret[d][j]<ret[d+D/2][j]) break;
+      if(ret[d][j]>ret[d+D/2][j]) { for(auto i=0; i!=ph::POINT_K; i++) std::swap(ret[d][i], ret[d+D/2][i]); break; } 
+    }
+  for(auto d=0; d!=D; d++)
+  if(H%64) ret[d][ph::POINT_K-1] &= ~-(1ull << H%64);
+  return ret;
 }
+
+using ph=PHTree<2*D, H, true>;
+using pt=typename ph::point;
+using uptr=std::uintptr_t;
 
 int main() {
-  srand(s);
-  assertions();
-  std::cout << "seed: " << s << std::endl;
-  bool val=0;
-  val |= test_rectQuery(1e4);
-  return val;
+  seed=time(0);
+  srand(seed);
+  std::cout << "seed: " << seed << std::endl;
+
+  auto leq=[](u64 *a1, u64 *a2) { for(auto i=0; i!=ph::POINT_K; i++) { auto c1=a1[ph::POINT_K-i-1], c2=a2[ph::POINT_K-i-1]; if(c1>c2) return 0; if(c1<c2) return 1; } return 1; };
+  auto intersect = [&](pt r1, pt r2) { bool ret=1; for(u64 a=0, b=D; a!=D; a++, b++) { ret &= leq(r1[a], r2[b]); ret &= leq(r2[a], r1[b]); } return ret; };
+
+  auto rq=gen_rect<2*D, H>();
+  std::vector<pt> pts; 
+  ph tr;
+  for(auto i=0; i!=1e5; i++) { auto p=gen_rect<2*D, H>(); tr.insert(tr.encode(p), (void*)i); pts.push_back(p); }
+
+  std::vector<int> to_sort1, to_sort2;
+  for(auto it=tr.begin(); !it.end(); it++) if(intersect(rq, tr.decode(*it))) to_sort1.push_back(uptr(it.ptr())); 
+  for(auto it=tr.intersectIterator(tr.encode(rq)); !it.end(); it++) to_sort2.push_back(uptr(it.ptr()));
+
+  std::sort(to_sort1.begin(), to_sort1.end());
+  std::sort(to_sort2.begin(), to_sort2.end());
+
+  if(to_sort1.size() != to_sort2.size()) return 1;
+  for(auto i=0; i!=to_sort1.size(); i++) if(to_sort1[i]!=to_sort2[i]) return 1;
+  return 0;
 }
